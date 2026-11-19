@@ -8,6 +8,7 @@ on:
     paths:
       - 'drivers/homevolt-battery/**'
       - 'lib/battery-energy-counters.js'
+      - 'lib/async-single-flight.js'
       - 'test/battery-energy-counters.test.js'
       - 'package.json'
       - 'package-lock.json'
