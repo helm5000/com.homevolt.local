@@ -4,7 +4,8 @@
   "main": "app.js",
   "scripts": {
     "lint": "eslint --ext .js,.ts --ignore-path .gitignore .",
-    "test:energy": "node --test test/battery-energy-counters.test.js"
+    "test:energy": "node --test test/battery-energy-counters.test.js",
+    "lint:energy": "eslint lib/battery-energy-counters.js test/battery-energy-counters.test.js"
   },
   "devDependencies": {
     "@types/homey": "npm:homey-apps-sdk-v3-types@^1.8.3",
