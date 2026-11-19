@@ -20,7 +20,8 @@ Separate observed behavior from assumptions about other firmware or topology.
 
 - [ ] `npm ci`
 - [ ] `npm run test:energy` (if battery energy logic is affected)
-- [ ] `npm run lint`
+- [ ] `npm run lint:energy` and `node --check drivers/homevolt-battery/device.js`
+- [ ] Existing full-project `npm run lint` failures are disclosed if relevant
 - [ ] Any relevant additional tests have been added
 - [ ] I have documented the results accurately (including failures/not run)
 
