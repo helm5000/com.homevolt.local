@@ -4,6 +4,32 @@ This app adds support for connecting your Homevolt battery to Homey.
 Monitor your charge level, charge/discharge pattern and even grid frequency from the Homey app.
 
 
+## EXPERIMENTAL BATTERY ENERGY COUNTER FIX (FORK BRANCH)
+
+> **Development only.** This branch contains an unmerged proposal to correct
+> Homey's cumulative battery charging/discharging counters. It is **not**
+> included in the official Homevolt Homey app and has **not** yet passed real
+> Homey hardware acceptance tests. The project's original author has not
+> reviewed or endorsed this change.
+
+On one Homevolt installation, the original battery energy fields stayed at
+zero during active charging and discharging. The proposed fix instead derives
+*incremental* battery energy from `ems[].ems_aggregate`, with persistent
+baselines to avoid falsely importing historical lifetime kWh into Homey.
+It does **not** alter partner (e.g. Greenely) control or scheduling.
+
+- [Implementation, energy direction and limitations](docs/battery-energy-counters.md)
+- [Anonymized observations from 6–17 November 2026](docs/battery-energy-validation.md)
+- [How to test safely, verify Homey Energy and roll back](docs/battery-energy-testing.md)
+- [Energy counter unit tests](test/battery-energy-counters.test.js) —
+  run `npm run test:energy`
+
+Do not install this branch over a working production system solely because
+the counter mapping was observed on one device. Validate firmware, metering
+boundary, Homey Energy interactions and restart behavior first.
+
+---
+
 ## GETTING STARTED
 1. Ensure the local web server is enabled, or create an access token in the Homevolt's web interface (see SIGN-IN below)
 2. Install the Homevolt for Homey app
