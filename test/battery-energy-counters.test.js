@@ -142,7 +142,9 @@ test('single-flight guard skips overlapping polls and accepts the next poll', as
   const owner = {};
   let release;
   let starts = 0;
-  const gate = new Promise((resolve) => { release = resolve; });
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
   const first = runSingleFlight(owner, 'polling', async () => {
     starts++;
     await gate;
