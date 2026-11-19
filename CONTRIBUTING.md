@@ -48,3 +48,28 @@ Merging pull requests takes time. While we always try to merge your pull request
 * Ask developers to review your code changes and post their feedback.
 * Ask users to test your changes and post their feedback.
 * Keep your changes to the minimal required amount, and dedicated to one issue/feature only.
+
+## Working on the experimental Homevolt battery energy counters
+
+The battery-energy change in this fork is an **unreleased proposal**. Before
+changing its implementation or asking the upstream maintainer to review it:
+
+1. Read [the design and direction mapping](docs/battery-energy-counters.md)
+   and [the field observations](docs/battery-energy-validation.md). Distinguish
+   measured facts from assumptions about other hardware and firmware.
+2. Follow the [test, deployment and rollback checklist](docs/battery-energy-testing.md).
+   Run `npm ci`, `npm run test:energy` and `npm run lint`; include actual
+   results and relevant environments in your PR.
+3. Add focused tests for changed counter direction, units, initialization,
+   persistence, resets, multiple EMS units and unusual firmware values.
+4. Keep this energy fix independent of battery schedules, control modes,
+   authentication, grid/solar sensors and unrelated formatting changes.
+5. Never attach an unredacted `/ems.json`, network address, device serial,
+   token, password, QR code, account identifier or private Homey data to a
+   public issue or PR. Use sanitized minimal examples.
+6. Prefer a draft PR for incomplete work. Request upstream review only after
+   clearly disclosing unfinished real-hardware validation and known risks.
+
+Please respect the existing upstream project's GPL-3.0 license, attribution,
+review conventions and release process. A public fork is not an official
+upstream release.
