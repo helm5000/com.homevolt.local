@@ -38,9 +38,11 @@ test('discharging maps EMS imported to Homey exported', () => {
 
 test('missing and non-finite API fields are rejected', () => {
   assert.equal(readEnergyCounters({ ems: [{ ems_aggregate: { exported_kwh: 5 } }] }), null);
-  assert.equal(readEnergyCounters({ ems: [{
-    ems_aggregate: { exported_kwh: NaN, imported_kwh: 7 },
-  }] }), null);
+  assert.equal(readEnergyCounters({
+    ems: [
+      { ems_aggregate: { exported_kwh: NaN, imported_kwh: 7 } },
+    ],
+  }), null);
   assert.equal(readEnergyCounters({ ems: [] }), null);
   assert.equal(readEnergyCounters(null), null);
 });
