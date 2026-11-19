@@ -58,8 +58,10 @@ changing its implementation or asking the upstream maintainer to review it:
    and [the field observations](docs/battery-energy-validation.md). Distinguish
    measured facts from assumptions about other hardware and firmware.
 2. Follow the [test, deployment and rollback checklist](docs/battery-energy-testing.md).
-   Run `npm ci`, `npm run test:energy` and `npm run lint`; include actual
-   results and relevant environments in your PR.
+   Run `npm ci`, `npm run test:energy`, `npm run lint:energy`, and
+   `node --check drivers/homevolt-battery/device.js`; include actual results
+   and relevant environments in your PR. The inherited full-project
+   `npm run lint` currently reports unrelated upstream style errors.
 3. Add focused tests for changed counter direction, units, initialization,
    persistence, resets, multiple EMS units and unusual firmware values.
 4. Keep this energy fix independent of battery schedules, control modes,
