@@ -12,20 +12,20 @@ production installation merely because the unit tests pass.
 - A backup of Homey settings and a record of battery/energy device inclusion.
 - Leave third-party/partner control (for example, Greenely) **unchanged**.
 - Never commit passwords, tokens, IP addresses, QR codes, serials, or raw
-  identifiable \`/ems.json\` logs.
+  identifiable `/ems.json` logs.
 
-This patch consumes the existing app's authenticated \`getStatus()\` data.
+This patch consumes the existing app's authenticated `getStatus()` data.
 It does not open an additional HTTP connection or bypass the app's auth logic.
 
 ## Static and unit tests
 
 At the repository root:
 
-\`\`\`sh
+```sh
 npm ci
 npm run test:energy
 npm run lint
-\`\`\`
+```
 
 The energy tests cover direction mapping, initial baseline, restarts, multiple
 EMS entries, bad/missing values, counter rollback and unrealistic jumps.
@@ -36,18 +36,18 @@ Homey. Run and record CI/lint results rather than claiming them in advance.
 
 ## Code review checklist
 
-- [ ] No changes to \`settings_local\`, \`target_power_mode\`, schedules,
-      \`/console.json\` commands or partner/Greenely cloud control
+- [ ] No changes to `settings_local`, `target_power_mode`, schedules,
+      `/console.json` commands or partner/Greenely cloud control
 - [ ] No new grid, solar or battery devices and no doubled Energy inclusion
-- [ ] \`ems[].ems_aggregate.exported_kwh\` is mapped to **battery charged**
-      (\`meter_power.imported\`)
-- [ ] \`ems[].ems_aggregate.imported_kwh\` is mapped to **battery discharged**
-      (\`meter_power.exported\`)
-- [ ] \`ems_aggregate\` values are already **kWh**; no extra division by 1000
-- [ ] Existing authenticated \`getStatus()\` path is reused
+- [ ] `ems[].ems_aggregate.exported_kwh` is mapped to **battery charged**
+      (`meter_power.imported`)
+- [ ] `ems[].ems_aggregate.imported_kwh` is mapped to **battery discharged**
+      (`meter_power.exported`)
+- [ ] `ems_aggregate` values are already **kWh**; no extra division by 1000
+- [ ] Existing authenticated `getStatus()` path is reused
 - [ ] Migration starts from existing Homey capability totals, not inverter
       lifetime meter readings
-- [ ] \`data.aggregated\` is not added on top of \`data.ems\`
+- [ ] `data.aggregated` is not added on top of `data.ems`
 - [ ] Handling of missing values, rollback, spikes and multiple EMS is reviewed
 - [ ] Code is reviewed against the latest upstream branch before proposing
       a pull request
@@ -61,9 +61,9 @@ may affect history and flows.
 
 After checking the target Homey and CLI session, run:
 
-\`\`\`sh
+```sh
 homey app run
-\`\`\`
+```
 
 For each test, record before/after values with timezone and firmware/app
 version. Compare *deltas* between matching timestamps, not raw lifetime totals.
@@ -72,8 +72,8 @@ version. Compare *deltas* between matching timestamps, not raw lifetime totals.
 | --- | --- |
 | First valid read | New raw baseline; no historical kWh jump |
 | Battery idle | No artificial charge/discharge increment |
-| Real charging | Battery \`meter_power.imported\` increases |
-| Real discharging | Battery \`meter_power.exported\` increases |
+| Real charging | Battery `meter_power.imported` increases |
+| Real discharging | Battery `meter_power.exported` increases |
 | Restart | Persisted totals resume without re-counting |
 | Network unavailable | Existing energy totals do not decrease |
 | API field missing | Invalid reading rejected |
@@ -100,7 +100,7 @@ Resolve or explicitly accept these risks before publishing a stable release.
 Run for at least **24–48 hours with both charging and discharging**, then:
 
 1. Record the battery's Homey energy capability totals at the start/end.
-2. Independently record \`ems_aggregate\` start/end counters.
+2. Independently record `ems_aggregate` start/end counters.
 3. Compare increments per direction; account for missing and reset intervals.
 4. Check that other included grid/solar devices do not double-count.
 5. Compare Homey grid exchange with the site's authoritative grid meter
@@ -126,9 +126,9 @@ Avoid claiming that this patch backfills missing historical values.
 ## Upstream contribution
 
 Create a **draft PR within the fork** for review if desired. Before opening a
-PR against \`lovethyresson/com.homevolt.local\`, check current upstream changes,
+PR against `lovethyresson/com.homevolt.local`, check current upstream changes,
 run tests, document observed firmware/version context, and disclose all
-remaining limitations. Follow upstream \`CONTRIBUTING.md\` (small scope,
+remaining limitations. Follow upstream `CONTRIBUTING.md` (small scope,
 minimal unrelated changes, reproducible results). Do not claim upstream
 approval or device acceptance that has not occurred.
 
