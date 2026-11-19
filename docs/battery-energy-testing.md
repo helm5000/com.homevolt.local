@@ -24,11 +24,19 @@ At the repository root:
 ```sh
 npm ci
 npm run test:energy
-npm run lint
+npm run lint:energy
+node --check drivers/homevolt-battery/device.js
 ```
 
 The energy tests cover direction mapping, initial baseline, restarts, multiple
 EMS entries, bad/missing values, counter rollback and unrealistic jumps.
+
+**Important:** `npm run lint` (the inherited full-repository lint) currently
+reports hundreds of pre-existing style errors across unchanged upstream code.
+CI therefore runs strict ESLint on the new energy module and tests, plus a
+syntax check of the modified legacy driver. Green CI **does not imply** the
+whole upstream repository is lint-clean. A future project-wide cleanup should
+be a separate contribution, not part of the battery metering fix.
 
 **Important:** these tests use synthetic fixtures (some based on actual
 observations). They are not proof that the patched app works on a production
