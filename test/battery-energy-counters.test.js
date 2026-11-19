@@ -1,15 +1,22 @@
 'use strict';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readEnergyCounters, advanceEnergyCounters } = require('../lib/battery-energy-counters');
 
-const sample = (charge, discharge) => ({ ems: [{ ems_aggregate: {
-  exported_kwh: charge, imported_kwh: discharge,
-} }] });
+const sample = (charge, discharge) => ({
+  ems: [{
+    ems_aggregate: {
+      exported_kwh: charge,
+      imported_kwh: discharge,
+    },
+  }],
+});
 const t0 = Date.parse('2026-11-10T15:00:00Z');
-const step = (state, charge, discharge, mins = 5, rated = 12000) =>
-  advanceEnergyCounters(state, readEnergyCounters(sample(charge, discharge)),
-    state.at + mins * 60000, rated, { imported: 0, exported: 0 });
+const step = (state, charge, discharge, mins = 5, rated = 12000) => advanceEnergyCounters(
+  state, readEnergyCounters(sample(charge, discharge)),
+  state.at + mins * 60000, rated, { imported: 0, exported: 0 },
+);
 
 test('charging maps EMS exported to Homey imported', () => {
   const x = advanceEnergyCounters(null, readEnergyCounters(sample(1756.4, 1544.71)),
@@ -31,14 +38,20 @@ test('discharging maps EMS imported to Homey exported', () => {
 
 test('missing and non-finite API fields are rejected', () => {
   assert.equal(readEnergyCounters({ ems: [{ ems_aggregate: { exported_kwh: 5 } }] }), null);
-  assert.equal(readEnergyCounters({ ems: [{ ems_aggregate: { exported_kwh: NaN, imported_kwh: 7 } }] }), null);
+  assert.equal(readEnergyCounters({ ems: [{
+    ems_aggregate: { exported_kwh: NaN, imported_kwh: 7 },
+  }] }), null);
   assert.equal(readEnergyCounters({ ems: [] }), null);
   assert.equal(readEnergyCounters(null), null);
 });
 
 test('multiple EMS are summed without double-counting aggregated', () => {
-  const reading = readEnergyCounters({ ems: [sample(2, 3).ems[0], sample(4, 5).ems[0]],
-    aggregated: { ems_aggregate: { exported_kwh: 6, imported_kwh: 8 } } });
+  const reading = readEnergyCounters({
+    ems: [sample(2, 3).ems[0], sample(4, 5).ems[0]],
+    aggregated: {
+      ems_aggregate: { exported_kwh: 6, imported_kwh: 8 },
+    },
+  });
   assert.deepEqual(reading, { charged: 6, discharged: 8, emsCount: 2 });
 });
 
@@ -70,9 +83,9 @@ test('counter resets and EMS count changes rebaseline safely', () => {
   assert.equal(reset.reason, 'rebaseline');
   assert.equal(reset.state.imported, y.state.imported);
   assert.equal(reset.state.exported, y.state.exported);
-  const extra = advanceEnergyCounters(reset.state, readEnergyCounters({ ems: [
-    sample(0.1, 0.2).ems[0], sample(1, 2).ems[0],
-  ] }), reset.state.at + 60000, 24000, {});
+  const extra = advanceEnergyCounters(reset.state, readEnergyCounters({
+    ems: [sample(0.1, 0.2).ems[0], sample(1, 2).ems[0]],
+  }), reset.state.at + 60000, 24000, {});
   assert.equal(extra.reason, 'rebaseline');
   assert.equal(extra.state.imported, y.state.imported);
 });
