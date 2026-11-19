@@ -21,6 +21,7 @@ It does **not** alter partner (e.g. Greenely) control or scheduling.
 - [Implementation, energy direction and limitations](docs/battery-energy-counters.md)
 - [Anonymized observations from 6–17 November 2026](docs/battery-energy-validation.md)
 - [How to test safely, verify Homey Energy and roll back](docs/battery-energy-testing.md)
+- [Driftsäkerhetsgranskning: samtidighet, omstarter och kvarstående risker](docs/battery-energy-reliability.md)
 - [Energy counter unit tests](test/battery-energy-counters.test.js) —
   run `npm run test:energy`
 
