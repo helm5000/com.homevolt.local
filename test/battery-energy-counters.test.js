@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readEnergyCounters, advanceEnergyCounters } = require('../lib/battery-energy-counters');
+const { runSingleFlight } = require('../lib/async-single-flight');
 
 const sample = (charge, discharge) => ({
   ems: [{
@@ -106,4 +107,68 @@ test('old timestamp is not counted twice', () => {
     t0, 12000, {});
   assert.equal(y.reason, 'time');
   assert.equal(y.state, x.state);
+});
+
+test('missed poll can recover cumulative energy after a network outage', () => {
+  const initial = advanceEnergyCounters(null, readEnergyCounters(sample(10, 20)),
+    t0, 12000, {});
+  const noApi = advanceEnergyCounters(initial.state, readEnergyCounters(null),
+    t0 + 5 * 60000, 12000, {});
+  assert.equal(noApi.reason, 'invalid');
+  assert.equal(noApi.state, initial.state);
+  const resumed = advanceEnergyCounters(initial.state, readEnergyCounters(sample(10.4, 20.3)),
+    t0 + 20 * 60000, 12000, {});
+  assert.equal(resumed.reason, 'ok');
+  assert.ok(Math.abs(resumed.state.imported - 0.4) < 0.00001);
+  assert.ok(Math.abs(resumed.state.exported - 0.3) < 0.00001);
+});
+
+test('retry from prior persisted baseline does not double-count a partial write', () => {
+  const initial = advanceEnergyCounters(null, readEnergyCounters(sample(10, 20)),
+    t0, 12000, {});
+  const partiallyPublished = advanceEnergyCounters(initial.state,
+    readEnergyCounters(sample(10.1, 20.1)), t0 + 5 * 60000, 12000, {});
+  assert.ok(Math.abs(partiallyPublished.state.imported - 0.1) < 0.00001);
+
+  // Simulate failure before the new store state is committed. A subsequent
+  // fetch calculates absolute totals from the old baseline, not prior writes.
+  const retry = advanceEnergyCounters(initial.state,
+    readEnergyCounters(sample(10.2, 20.1)), t0 + 10 * 60000, 12000, {});
+  assert.ok(Math.abs(retry.state.imported - 0.2) < 0.00001);
+  assert.ok(Math.abs(retry.state.exported - 0.1) < 0.00001);
+});
+
+test('single-flight guard skips overlapping polls and accepts the next poll', async () => {
+  const owner = {};
+  let release;
+  let starts = 0;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const first = runSingleFlight(owner, 'polling', async () => {
+    starts++;
+    await gate;
+  });
+  const skipped = await runSingleFlight(owner, 'polling', async () => {
+    starts++;
+  });
+  assert.equal(skipped, false);
+  assert.equal(starts, 1);
+  release();
+  assert.equal(await first, true);
+  const next = await runSingleFlight(owner, 'polling', async () => {
+    starts++;
+  });
+  assert.equal(next, true);
+  assert.equal(starts, 2);
+});
+
+test('single-flight guard releases lock after a rejected operation', async () => {
+  const owner = {};
+  await assert.rejects(
+    runSingleFlight(owner, 'polling', async () => {
+      throw new Error('network failure');
+    }),
+    /network failure/,
+  );
+  const next = await runSingleFlight(owner, 'polling', async () => {});
+  assert.equal(next, true);
 });
