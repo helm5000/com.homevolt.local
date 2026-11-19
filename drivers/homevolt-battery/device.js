@@ -1,6 +1,7 @@
 const { Device } = require('homey');
 const { STORE_KEY, readEnergyCounters, advanceEnergyCounters } = require('../../lib/battery-energy-counters');
 const FormData = require('form-data');
+const { runSingleFlight } = require('../../lib/async-single-flight');
 const { track, trackedRunListener, trackConnectionState } = require('../../lib/analytics');
 const {
   SECRET_SETTING, isAuthProblem, reportAuthProblem, onSecretSettingChanged,
@@ -581,9 +582,18 @@ restartPolling(newInterval) {
 }
 
 /**
- * Fetch data from the device's API
+ * Do not allow overlapping API fetches to race on capability/store updates.
+ * Skipping one tick is safe because cumulative EMS energy is read next time.
+ * The initial onInit read uses the same guard as the periodic timer.
  */
 async fetchData() {
+  return runSingleFlight(this, '_homevoltPollActive', () => this._fetchDataOnce());
+}
+
+/**
+ * Fetch data from the device's API
+ */
+async _fetchDataOnce() {
   try {
     const data = await this.homey.app.getStatus({ address: this.ip, secret: this.secret() });
     // getStatus resolves to null rather than rejecting once _fetchWithRetry has exhausted its
