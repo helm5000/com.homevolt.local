@@ -14,9 +14,11 @@ const start = source.indexOf('async updateBatteryEnergyCounters(data) {');
 const end = source.indexOf('async updateCapabilities(data) {', start);
 assert.ok(start >= 0 && end > start, 'Expected energy method in actual driver');
 const method = source.slice(start, end).trim();
+let simulatedNow = Date.parse('2026-11-20T05:00:00Z');
+const FakeDate = { now: () => simulatedNow };
 const update = vm.runInNewContext(
   '({' + method + '}).updateBatteryEnergyCounters',
-  { readEnergyCounters, advanceEnergyCounters, STORE_KEY, Date },
+  { readEnergyCounters, advanceEnergyCounters, STORE_KEY, Date: FakeDate },
 );
 
 function sample(charged, discharged) {
@@ -51,6 +53,8 @@ function fakeDevice(options = {}) {
 }
 
 async function tick(mock, charge, discharge) {
+  // Each mock poll represents a distinct five-minute Homey polling interval.
+  simulatedNow += 5 * 60 * 1000;
   await update.call(mock.device, sample(charge, discharge));
 }
 
