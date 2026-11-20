@@ -149,3 +149,50 @@ test('invalid data leaves existing values and baseline unchanged', async () => {
   assert.deepEqual(m.store.get(STORE_KEY), before);
   assert.equal(m.writes.length, 0);
 });
+
+test('slow capability write remains pending until explicitly released', async () => {
+  const m = fakeDevice();
+  await tick(m, 100, 200);
+  const original = m.device.setCapabilityValue;
+  let release;
+  let started;
+  const entered = new Promise((resolve) => {
+    started = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  m.device.setCapabilityValue = async (key, value) => {
+    started();
+    await gate;
+    return original(key, value);
+  };
+  const pending = tick(m, 100.1, 200.1);
+  await entered;
+  assert.equal(m.store.get(STORE_KEY).charged, 100);
+  assert.equal(m.values.get('meter_power.imported'), 0);
+  release();
+  await pending;
+  assert.ok(Math.abs(m.values.get('meter_power.imported') - 0.1) < 1e-8);
+});
+
+test('long offline interval preserves physically plausible cumulative energy', async () => {
+  const m = fakeDevice();
+  await tick(m, 100, 200);
+  simulatedNow += 8 * 60 * 60 * 1000;
+  await tick(m, 135, 230);
+  assert.ok(Math.abs(m.values.get('meter_power.imported') - 35) < 1e-8);
+  assert.ok(Math.abs(m.values.get('meter_power.exported') - 30) < 1e-8);
+});
+
+test('implausible high-throughput burst is excluded and subsequent values recover', async () => {
+  const m = fakeDevice();
+  await tick(m, 100, 200);
+  await tick(m, 200, 300);
+  assert.equal(m.values.get('meter_power.imported'), 0);
+  assert.equal(m.values.get('meter_power.exported'), 0);
+  assert.equal(m.store.get(STORE_KEY).charged, 200);
+  await tick(m, 200.2, 300.1);
+  assert.ok(Math.abs(m.values.get('meter_power.imported') - 0.2) < 1e-8);
+  assert.ok(Math.abs(m.values.get('meter_power.exported') - 0.1) < 1e-8);
+});
