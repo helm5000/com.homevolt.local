@@ -17,8 +17,10 @@ const method = source.slice(start, end).trim();
 let simulatedNow = Date.parse('2026-11-20T05:00:00Z');
 const FakeDate = { now: () => simulatedNow };
 const update = vm.runInNewContext(
-  '({' + method + '}).updateBatteryEnergyCounters',
-  { readEnergyCounters, advanceEnergyCounters, STORE_KEY, Date: FakeDate },
+  `({${method}}).updateBatteryEnergyCounters`,
+  {
+    readEnergyCounters, advanceEnergyCounters, STORE_KEY, Date: FakeDate,
+  },
 );
 
 function sample(charged, discharged) {
@@ -57,7 +59,9 @@ function fakeDevice(options = {}) {
       throw new Error('Unexpected battery command');
     },
   };
-  return { device, store, values, writes };
+  return {
+    device, store, values, writes,
+  };
 }
 
 async function tick(mock, charge, discharge) {
