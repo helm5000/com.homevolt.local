@@ -22,7 +22,9 @@ const update = vm.runInNewContext(
 );
 
 function sample(charged, discharged) {
-  return { ems: [{ ems_aggregate: { exported_kwh: charged, imported_kwh: discharged } }] };
+  return {
+    ems: [{ ems_aggregate: { exported_kwh: charged, imported_kwh: discharged } }],
+  };
 }
 
 function fakeDevice(options = {}) {
@@ -36,18 +38,24 @@ function fakeDevice(options = {}) {
     ratedPowerWatts: 12000,
     getStoreValue: (key) => store.get(key),
     setStoreValue: async (key, value) => {
-      if (options.failStore && options.failStore()) throw new Error('store write failed');
+      if (options.failStore && options.failStore()) {
+        throw new Error('store write failed');
+      }
       store.set(key, structuredClone(value));
     },
     getCapabilityValue: (key) => values.get(key),
     setCapabilityValue: async (key, value) => {
       writes.push({ key, value });
-      if (options.failCapability && options.failCapability(key)) throw new Error('capability write failed');
+      if (options.failCapability && options.failCapability(key)) {
+        throw new Error('capability write failed');
+      }
       values.set(key, value);
     },
     log: () => {},
     // A command function must never be called by this energy-only routine.
-    sendBatteryCommand: () => { throw new Error('Unexpected battery command'); },
+    sendBatteryCommand: () => {
+      throw new Error('Unexpected battery command');
+    },
   };
   return { device, store, values, writes };
 }
@@ -77,10 +85,15 @@ test('charging and discharging update correct Homey capabilities', async () => {
 
 test('failure on second capability write does not persist a new baseline; retry converges', async () => {
   let fail = true;
-  const m = fakeDevice({ failCapability: (key) => {
-    if (key === 'meter_power.exported' && fail) { fail = false; return true; }
-    return false;
-  } });
+  const m = fakeDevice({
+    failCapability: (key) => {
+      if (key === 'meter_power.exported' && fail) {
+        fail = false;
+        return true;
+      }
+      return false;
+    },
+  });
   await tick(m, 100, 200);
   const before = m.store.get(STORE_KEY);
   await assert.rejects(tick(m, 100.2, 200.1), /capability write failed/);
@@ -92,10 +105,15 @@ test('failure on second capability write does not persist a new baseline; retry 
 
 test('store failure after capability writes retries absolute values without double-counting', async () => {
   let fail = false;
-  const m = fakeDevice({ failStore: () => {
-    if (fail) { fail = false; return true; }
-    return false;
-  } });
+  const m = fakeDevice({
+    failStore: () => {
+      if (fail) {
+        fail = false;
+        return true;
+      }
+      return false;
+    },
+  });
   await tick(m, 100, 200);
   fail = true;
   await assert.rejects(tick(m, 100.1, 200.1), /store write failed/);
