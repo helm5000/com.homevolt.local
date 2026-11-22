@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/homevolt-energy-counters
+      - test/1.7.4-energy-only
   pull_request:
     paths:
       - 'drivers/homevolt-battery/**'
