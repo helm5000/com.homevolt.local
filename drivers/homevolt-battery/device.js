@@ -2,6 +2,8 @@ const { Device } = require('homey');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 const { track, trackedRunListener, trackConnectionState } = require('../../lib/analytics');
+const { STORE_KEY, readEnergyCounters, advanceEnergyCounters } = require('../../lib/battery-energy-counters');
+const { runSingleFlight } = require('../../lib/async-single-flight');
 
 // Set by Homey only for `homey app run` (dev) sessions, not on installed/published apps.
 const DEBUG = process.env.DEBUG === '1';
@@ -581,6 +583,10 @@ restartPolling(newInterval) {
  * Fetch data from the device's API
  */
 async fetchData() {
+  return runSingleFlight(this, '_homevoltPollActive', () => this._fetchDataOnce());
+}
+
+async _fetchDataOnce() {
   try {
     const data = await this.homey.app.getStatus({ address: this.ip });
     // getStatus resolves to null rather than rejecting once _fetchWithRetry has exhausted its
@@ -589,7 +595,7 @@ async fetchData() {
     if (!data || !Array.isArray(data.ems)) {
       throw new Error('No EMS data in response');
     }
-    this.updateCapabilities(data);
+    await this.updateCapabilities(data);
     // Both are edge-triggered inside (see lib/analytics.js and app.js), so neither adds an event
     // per poll: this runs every 5 seconds by default.
     trackConnectionState(this, true, this.analyticsRole());
@@ -602,7 +608,40 @@ async fetchData() {
   }
 }
 
-updateCapabilities(data) {
+  /**
+   * Keep the battery's cumulative energy meters device-local and persistent.
+   * A new installation establishes a baseline, so lifetime EMS counters
+   * cannot appear as newly charged/discharged energy in Homey Energy.
+   * No commands are sent to the battery or its external controller.
+   */
+  async updateBatteryEnergyCounters(data) {
+    const reading = readEnergyCounters(data);
+    if (!reading) return; // Older firmware: leave existing meter values untouched.
+
+    const previous = this.getStoreValue(STORE_KEY);
+    const existing = {
+      imported: this.getCapabilityValue('meter_power.imported'),
+      exported: this.getCapabilityValue('meter_power.exported'),
+    };
+    const { state, reason, publish } = advanceEnergyCounters(
+      previous, reading, Date.now(), this.ratedPowerWatts, existing,
+    );
+    if (reason === 'invalid' || reason === 'time' || (reason === 'ok' && !publish)) return;
+
+    // Publish absolute cumulative totals, never raw device lifetime totals.
+    // Store only after successful capability updates so a failed write can
+    // safely be retried from the same persisted baseline on the next poll.
+    if (publish) {
+      await this.setCapabilityValue('meter_power.imported', state.imported);
+      await this.setCapabilityValue('meter_power.exported', state.exported);
+    }
+    if (reason === 'spike' || reason === 'rebaseline') {
+      this.log(`Battery energy counters: ${reason}; established a new baseline`);
+    }
+    await this.setStoreValue(STORE_KEY, state);
+  }
+
+async updateCapabilities(data) {
 
   // Refresh on every poll so it self-corrects if a pack is added/removed.
   // Only log on the initial detection or an actual change, not every poll.
@@ -615,8 +654,6 @@ updateCapabilities(data) {
 
   // Parse data into useful data points and update capabilities
 
-  const batteryImportedKWh = data.ems[0]?.ems_data?.energy_consumed / 1000;     // Accumulated imported energy, scale to kWh
-  const batteryExportedKWh = data.ems[0]?.ems_data?.energy_produced / 1000;    // Accumulated exported energy, scale to kWh
   const batteryChargePower = -data.ems[0]?.ems_data?.power;                     // Current charge power
   const batteryTargetPower = -data.ems[0]?.ems_control?.pwr_ref;                // Target power
   const batteryAvailableEnergykWh = data.ems[0]?.bms_data?.reduce(             // Loop through multiple packs to summarize vailable capacity in battery in kWh
@@ -660,12 +697,6 @@ updateCapabilities(data) {
   if (batteryChargePower !== undefined && batteryChargePower !== null) {
       this.setCapabilityValue('measure_power', batteryChargePower).catch(this.error);
   }
-  if (batteryImportedKWh !== undefined && batteryImportedKWh !== null) {
-      this.setCapabilityValue('meter_power.imported', batteryImportedKWh).catch(this.error);
-  }
-  if (batteryExportedKWh !== undefined && batteryExportedKWh !== null) {
-      this.setCapabilityValue('meter_power.exported', batteryExportedKWh).catch(this.error);
-  }
   if (batteryAvailableEnergykWh !== undefined && batteryAvailableEnergykWh !== null) {
       this.setCapabilityValue('meter_power.available', batteryAvailableEnergykWh).catch(this.error);
   }
@@ -691,6 +722,10 @@ updateCapabilities(data) {
     }
   }
 
+  // Meter accounting is isolated from battery commands and partner control.
+  await this.updateBatteryEnergyCounters(data).catch((err) => {
+    this.error('Failed to update battery energy counters:', err);
+  });
   this.setAvailable().catch(this.error); // Ensure the device remains available after updates
 }
 
