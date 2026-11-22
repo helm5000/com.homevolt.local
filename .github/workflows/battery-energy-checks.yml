@@ -1,0 +1,44 @@
+name: Battery energy checks
+
+on:
+  push:
+    branches:
+      - fix/homevolt-energy-counters
+  pull_request:
+    paths:
+      - 'drivers/homevolt-battery/**'
+      - 'lib/battery-energy-counters.js'
+      - 'lib/async-single-flight.js'
+      - 'test/battery-energy-counters.test.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintrc.json'
+      - 'tsconfig.json'
+      - '.github/workflows/battery-energy-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  energy-tests:
+    name: Node.js tests and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test battery energy counters
+        run: npm run test:energy
+      # Upstream's full-repository lint currently reports hundreds of legacy
+      # style violations. Do not disable rules globally or rewrite unrelated code.
+      # Keep strict lint for newly added energy code; syntax-check the integration.
+      - name: JavaScript syntax - existing Homevolt battery driver
+        run: node --check drivers/homevolt-battery/device.js
+      - name: ESLint - new energy module and unit tests
+        run: npm run lint:energy
